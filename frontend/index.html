@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>需求列表关联工作台</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div>
+          <h1>需求列表关联工作台</h1>
+          <p>按 FE、RR、云服务关联多个来源列表，在线预览差异并生成待回刷评论。</p>
+        </div>
+        <a id="package-link" class="download-link hidden" href="#">下载需求汇总包</a>
+      </header>
+
+      <section class="layout">
+        <aside class="panel config-panel">
+          <form id="job-form">
+            <h2>新建分析</h2>
+
+            <label>
+              <span>基准需求列表</span>
+              <input name="baseline" type="file" accept=".xlsx,.xlsm" required />
+            </label>
+
+            <label>
+              <span>来源列表</span>
+              <input name="pm_files" type="file" accept=".xlsx,.xlsm" multiple required />
+            </label>
+
+            <div class="field-grid">
+              <label>
+                <span>FE 列</span>
+                <input name="fe_column" value="FE编号" />
+              </label>
+              <label>
+                <span>RR 列</span>
+                <input name="rr_column" value="RR编号" />
+              </label>
+              <label>
+                <span>云服务列</span>
+                <input name="service_column" value="云服务" />
+              </label>
+              <label>
+                <span>标题列</span>
+                <input name="title_column" value="需求标题" />
+              </label>
+            </div>
+
+            <label>
+              <span>我负责的云服务，逗号分隔</span>
+              <input name="owned_services" value="A,B" />
+            </label>
+
+            <label>
+              <span>进入评论的字段，逗号分隔</span>
+              <input name="comment_fields" value="对齐结论,会议纪要,风险,客户影响,备注" />
+            </label>
+
+            <label>
+              <span>空值填充规则 JSON</span>
+              <textarea name="fill_defaults_json" rows="3">{}</textarea>
+            </label>
+
+            <fieldset>
+              <legend>评论目标</legend>
+              <label class="inline"><input type="radio" name="comment_target" value="fe" /> 仅 FE</label>
+              <label class="inline"><input type="radio" name="comment_target" value="rr" /> 仅 RR</label>
+              <label class="inline"><input type="radio" name="comment_target" value="both" checked /> FE + RR</label>
+              <label class="inline"><input type="checkbox" name="sync_linked" /> 同步到一层关联对象</label>
+            </fieldset>
+
+            <button id="submit-button" type="submit">开始分析</button>
+          </form>
+        </aside>
+
+        <section class="workspace">
+          <section id="error" class="error hidden"></section>
+
+          <section id="summary-panel" class="summary-grid hidden"></section>
+
+          <section id="filters" class="panel hidden">
+            <div class="filter-grid">
+              <label>
+                <span>云服务</span>
+                <select id="service-filter"></select>
+              </label>
+              <label>
+                <span>是否归我负责</span>
+                <select id="owned-filter">
+                  <option value="">全部</option>
+                  <option value="是">是</option>
+                  <option value="否">否</option>
+                </select>
+              </label>
+              <label>
+                <span>异常级别</span>
+                <select id="severity-filter"></select>
+              </label>
+              <label>
+                <span>搜索</span>
+                <input id="search-box" placeholder="FE / RR / 标题" />
+              </label>
+            </div>
+          </section>
+
+          <section id="preview-panel" class="panel hidden">
+            <div class="panel-title">
+              <h2>在线预览</h2>
+              <a id="json-link" class="secondary-link hidden" href="#">下载 sync_plan.json</a>
+            </div>
+            <div class="table-wrap">
+              <table id="preview-table">
+                <thead>
+                  <tr>
+                    <th>FE</th>
+                    <th>RR</th>
+                    <th>云服务</th>
+                    <th>来源列表</th>
+                    <th>标题</th>
+                    <th>归我</th>
+                    <th>关系</th>
+                    <th>异常</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <aside class="panel detail-panel">
+          <h2>详情与评论模板</h2>
+          <div id="detail" class="detail-empty">选择预览表中的一行查看详情。</div>
+
+          <hr />
+
+          <label>
+            <span>当前评论模板</span>
+            <select id="template-select"></select>
+          </label>
+          <label>
+            <span>模板名称</span>
+            <input id="template-name" />
+          </label>
+          <label>
+            <span>模板内容</span>
+            <textarea id="comment-template" rows="14"></textarea>
+          </label>
+          <div class="button-row">
+            <button id="save-template" type="button">保存模板</button>
+            <button id="delete-template" type="button" class="secondary">删除</button>
+            <button id="reset-template" type="button" class="secondary">恢复默认</button>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
