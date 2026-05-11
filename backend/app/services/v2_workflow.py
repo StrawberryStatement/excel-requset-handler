@@ -88,6 +88,7 @@ def run_v2_workflow(
     source_tables = [load_excel_table(path) for path in saved_sources]
 
     rows = _normalize_source_rows(baseline, source_tables, config)
+    rows.extend(_build_baseline_duplicate_issue_rows(baseline, config))
     _apply_relationship_rules(rows, baseline, config)
 
     preview_rows = _build_preview_rows(rows, baseline, config)
@@ -144,17 +145,38 @@ def _validate_baseline(baseline: ExcelTable, config: WorkbookConfig) -> None:
     if missing:
         raise ValueError(f"baseline missing required columns: {', '.join(missing)}")
 
-    seen: set[str] = set()
-    duplicates: set[str] = set()
+def _build_baseline_duplicate_issue_rows(baseline: ExcelTable, config: V2WorkflowConfig) -> list[NormalizedSourceRow]:
+    cfg = config.workbook
+    counts: dict[str, int] = {}
     for row in baseline.records:
-        fe_id = normalize_cell(row.get(config.fe_column))
-        if not fe_id:
-            continue
-        if fe_id in seen:
-            duplicates.add(fe_id)
-        seen.add(fe_id)
+        fe_id = normalize_cell(row.get(cfg.fe_column))
+        if fe_id:
+            counts[fe_id] = counts.get(fe_id, 0) + 1
+
+    duplicates = {fe_id for fe_id, count in counts.items() if count > 1}
     if duplicates:
-        raise ValueError(f"Duplicate baseline FE values: {', '.join(sorted(duplicates))}")
+        issue_rows: list[NormalizedSourceRow] = []
+        for index, raw_row in enumerate(baseline.records, start=2):
+            fe_id = normalize_cell(raw_row.get(cfg.fe_column))
+            if fe_id not in duplicates:
+                continue
+            row = NormalizedSourceRow(
+                source_name=BASELINE_SOURCE,
+                source_type=BASELINE_SOURCE,
+                row_number=index,
+                raw=dict(raw_row),
+                normalized=dict(raw_row),
+                extension_columns=[],
+                fe_id=fe_id,
+                rr_id=normalize_cell(raw_row.get(cfg.rr_column)),
+                service=normalize_cell(raw_row.get(cfg.service_column)),
+                title=normalize_cell(raw_row.get(cfg.title_column)),
+            )
+            row.relation_tags.add("\u57fa\u51c6\u91cd\u590dFE")
+            _add_issue(row, "\u57fa\u51c6\u91cd\u590dFE", "\u4e25\u91cd")
+            issue_rows.append(row)
+        return issue_rows
+    return []
 
 
 def _normalize_source_rows(
@@ -322,7 +344,7 @@ def _build_preview_rows(rows: list[NormalizedSourceRow], baseline: ExcelTable, c
         item["relation_tags"].update(row.relation_tags)
         item["issue_tags"].update(row.issue_tags)
         item["severity"] = _max_severity(item["severity"], row.severity)
-        item["owned"] = item["owned"] or row.service in config.owned_services
+        item["owned"] = item["owned"] or _is_owned_service(row.service, config)
         summary = _extension_summary(row, config)
         if summary:
             item["extension_summary"].append(f"[{row.source_name}] {summary}")
@@ -345,7 +367,7 @@ def _build_preview_rows(rows: list[NormalizedSourceRow], baseline: ExcelTable, c
             "issue_tags": set(),
             "severity": "\u65e0",
             "extension_summary": [],
-            "owned": service in config.owned_services,
+            "owned": _is_owned_service(service, config),
         }
 
     output: list[dict[str, Any]] = []
@@ -374,6 +396,13 @@ def _extension_summary(row: NormalizedSourceRow, config: V2WorkflowConfig) -> st
         if value:
             pieces.append(f"{field}: {value}")
     return "; ".join(pieces)
+
+
+def _is_owned_service(service: str, config: V2WorkflowConfig) -> bool:
+    normalized_service = service.strip().casefold()
+    if not normalized_service:
+        return False
+    return normalized_service in {item.strip().casefold() for item in config.owned_services if item.strip()}
 
 
 def _build_rr_rows(rows: list[NormalizedSourceRow]) -> list[dict[str, Any]]:
@@ -433,6 +462,7 @@ def _issue_suggestion(issue: str) -> str:
         "\u5f85\u5efaFE": "\u5728\u5185\u90e8\u7cfb\u7edf\u521b\u5efa FE \u540e\u56de\u586b RR-FE \u6620\u5c04",
         "\u591a\u6765\u6e90\u5171\u540c\u7ba1\u7406": "\u786e\u8ba4\u662f\u5426\u91cd\u590d\u7eb3\u5165\u591a\u4e2a\u6765\u6e90\u5217\u8868",
         "\u4e91\u670d\u52a1\u51b2\u7a81": "\u786e\u8ba4 FE \u7684\u4e91\u670d\u52a1\u5f52\u5c5e",
+        "\u57fa\u51c6\u91cd\u590dFE": "\u5148\u786e\u8ba4\u57fa\u51c6\u8868\u4e2d\u91cd\u590d FE \u7684\u4fdd\u7559\u884c",
     }
     return suggestions.get(issue, "\u5728\u8be6\u60c5\u4e2d\u786e\u8ba4\u540e\u5904\u7406")
 
@@ -657,4 +687,3 @@ def _autosize_columns(sheet: Worksheet) -> None:
             value = "" if cell.value is None else str(cell.value)
             max_length = max(max_length, min(len(value), 80))
         sheet.column_dimensions[column_letter].width = max_length + 2
-
