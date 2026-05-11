@@ -156,6 +156,16 @@ add_requirement_comment(rr_id: str, comment: str) -> dict
 
 MVP 默认不直接调用内部系统，只生成待人工确认的回刷清单。
 
+## 文档
+
+```text
+docs\需求管理运作规范.md          # RR/FE 运作规范、字段必填规则、错误提示和页面帮助说明规范
+docs\sdd.md                       # 软件设计说明
+docs\prototype-v2-wireframe.md    # V2 原型与交互说明
+docs\test-plan.md                 # 测试计划
+docs\design.md                    # 早期设计说明
+```
+
 ## 测试
 
 ```powershell
@@ -197,4 +207,3 @@ samples/
 tests/
 docs/
 ```
-
