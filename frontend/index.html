@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>需求列表关联工作台</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles.css?v=help-required-20260511-2" />
   </head>
   <body>
     <main class="app-shell">
@@ -18,62 +18,103 @@
 
       <section class="layout">
         <aside class="panel config-panel">
-          <form id="job-form">
+          <form id="job-form" novalidate>
             <h2>新建分析</h2>
+            <p class="form-note">标注“必填”的项目未完成时，不能开始分析。</p>
+            <div class="schema-note">
+              <strong>Excel 必须包含字段</strong>
+              <span>基准需求列表：FE编号、云服务、需求标题；来源列表：云服务，且 FE编号 / RR编号 至少填写一个。</span>
+            </div>
 
             <label>
-              <span>基准需求列表</span>
-              <input name="baseline" type="file" accept=".xlsx,.xlsm" required />
+              <span class="label-row">
+                基准需求列表 <span class="required-badge">必填</span>
+                <button class="help-trigger" type="button" data-help="baseline" aria-label="查看基准需求列表说明">?</button>
+              </span>
+              <input name="baseline" type="file" accept=".xlsx,.xlsm" required data-required-label="基准需求列表" />
             </label>
 
             <label>
-              <span>来源列表</span>
-              <input name="pm_files" type="file" accept=".xlsx,.xlsm" multiple required />
+              <span class="label-row">
+                来源列表 <span class="required-badge">必填</span>
+                <button class="help-trigger" type="button" data-help="sourceFiles" aria-label="查看来源列表说明">?</button>
+              </span>
+              <input name="pm_files" type="file" accept=".xlsx,.xlsm" multiple required data-required-label="来源列表" />
             </label>
 
             <div class="field-grid">
               <label>
-                <span>FE 列</span>
-                <input name="fe_column" value="FE编号" />
+                <span class="label-row">
+                  FE 列 <span class="required-badge">必填</span>
+                  <button class="help-trigger" type="button" data-help="feColumn" aria-label="查看 FE 列说明">?</button>
+                </span>
+                <input name="fe_column" value="FE编号" required data-required-label="FE 列名" />
               </label>
               <label>
-                <span>RR 列</span>
+                <span class="label-row">
+                  RR 列 <span class="optional-badge">选填</span>
+                  <button class="help-trigger" type="button" data-help="rrColumn" aria-label="查看 RR 列说明">?</button>
+                </span>
                 <input name="rr_column" value="RR编号" />
               </label>
               <label>
-                <span>云服务列</span>
-                <input name="service_column" value="云服务" />
+                <span class="label-row">
+                  云服务列 <span class="required-badge">必填</span>
+                  <button class="help-trigger" type="button" data-help="serviceColumn" aria-label="查看云服务列说明">?</button>
+                </span>
+                <input name="service_column" value="云服务" required data-required-label="云服务列名" />
               </label>
               <label>
-                <span>标题列</span>
-                <input name="title_column" value="需求标题" />
+                <span class="label-row">
+                  标题列 <span class="required-badge">必填</span>
+                  <button class="help-trigger" type="button" data-help="titleColumn" aria-label="查看标题列说明">?</button>
+                </span>
+                <input name="title_column" value="需求标题" required data-required-label="标题列名" />
               </label>
             </div>
 
             <label>
-              <span>我负责的云服务，逗号分隔</span>
+              <span class="label-row">
+                我负责的云服务 <span class="optional-badge">选填</span>
+                <button class="help-trigger" type="button" data-help="ownedServices" aria-label="查看我负责的云服务说明">?</button>
+              </span>
               <input name="owned_services" value="A,B" />
             </label>
 
             <label>
-              <span>用于生成回刷评论的字段，逗号分隔</span>
-              <input name="comment_fields" value="对齐结论,会议纪要,风险,客户影响,备注" />
+              <span class="label-row">
+                回刷评论内容字段 <span class="optional-badge">选填</span>
+                <button class="help-trigger" type="button" data-help="commentFields" aria-label="查看回刷评论字段说明">?</button>
+              </span>
+              <input name="comment_fields" value="对齐结论,会议纪要,风险,客户影响,备注" placeholder="例如：对齐结论,会议纪要,风险" />
+              <span class="field-help">这些列的内容会拼进待回刷评论；多个列名用英文或中文逗号分隔。</span>
             </label>
 
             <label>
-              <span>空值填充规则 JSON</span>
+              <span class="label-row">
+                空值填充规则 JSON <span class="optional-badge">选填</span>
+                <button class="help-trigger" type="button" data-help="fillDefaults" aria-label="查看空值填充规则说明">?</button>
+              </span>
               <textarea name="fill_defaults_json" rows="3">{}</textarea>
             </label>
 
             <fieldset>
-              <legend>评论目标</legend>
+              <legend>
+                评论目标
+                <button class="help-trigger" type="button" data-help="commentTarget" aria-label="查看评论目标说明">?</button>
+              </legend>
               <label class="inline"><input type="radio" name="comment_target" value="fe" /> 仅 FE</label>
               <label class="inline"><input type="radio" name="comment_target" value="rr" /> 仅 RR</label>
               <label class="inline"><input type="radio" name="comment_target" value="both" checked /> FE + RR</label>
-              <label class="inline"><input type="checkbox" name="sync_linked" /> 同步到一层关联对象</label>
+              <label class="inline">
+                <input type="checkbox" name="sync_linked" />
+                同步到一层关联对象
+                <button class="help-trigger" type="button" data-help="syncLinked" aria-label="查看同步到一层关联对象说明">?</button>
+              </label>
             </fieldset>
 
-            <button id="submit-button" type="submit">开始分析</button>
+            <div id="form-status" class="form-status"></div>
+            <button id="submit-button" type="submit" disabled>开始分析</button>
           </form>
         </aside>
 
@@ -109,7 +150,10 @@
 
           <section id="preview-panel" class="panel hidden">
             <div class="panel-title">
-              <h2>在线预览</h2>
+              <h2>
+                在线预览
+                <button class="help-trigger" type="button" data-help="preview" aria-label="查看在线预览说明">?</button>
+              </h2>
               <a id="json-link" class="secondary-link hidden" href="#">下载 sync_plan.json</a>
             </div>
             <div class="table-wrap">
@@ -139,7 +183,10 @@
           <hr />
 
           <label>
-            <span>当前评论模板</span>
+            <span class="label-row">
+              当前评论模板
+              <button class="help-trigger" type="button" data-help="commentTemplate" aria-label="查看评论模板说明">?</button>
+            </span>
             <select id="template-select"></select>
           </label>
           <label>
@@ -159,6 +206,7 @@
       </section>
     </main>
 
-    <script src="/app.js"></script>
+    <div id="help-popover" class="help-popover hidden" role="tooltip"></div>
+    <script src="/app.js?v=help-required-20260511"></script>
   </body>
 </html>
