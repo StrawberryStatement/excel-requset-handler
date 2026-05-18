@@ -10,8 +10,10 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from openpyxl.utils.exceptions import InvalidFileException
+from pydantic import BaseModel
 
 from backend.app.commenting.schemas import DEFAULT_COMMENT_TEMPLATE
+from backend.app.integrations.internal_system import DryRunInternalSystemClient
 from backend.app.models import DEFAULT_FE_COLUMN, DEFAULT_RR_COLUMN, DEFAULT_SERVICE_COLUMN, DEFAULT_TITLE_COLUMN, WorkbookConfig
 from backend.app.services.v2_workflow import V2WorkflowConfig, run_v2_workflow
 
@@ -21,6 +23,11 @@ FRONTEND_DIR = PROJECT_DIR / "frontend"
 JOBS_DIR = PROJECT_DIR / "jobs"
 
 app = FastAPI(title="RR-FE Excel Workspace", version="0.1.0")
+
+
+class FeCommentRequest(BaseModel):
+    fe_id: str
+    comment: str
 
 
 @app.get("/api/health")
@@ -116,6 +123,31 @@ async def create_job(
     payload["downloads"]["diff_report"] = payload["downloads"]["package"]
     payload["downloads"]["sync_plan_xlsx"] = payload["downloads"]["package"]
     return payload
+
+
+@app.post("/api/fe-comments")
+def add_fe_comment(request: FeCommentRequest) -> dict:
+    fe_id = request.fe_id.strip()
+    comment = request.comment.strip()
+    if not fe_id:
+        raise HTTPException(status_code=400, detail=_error_detail(
+            code="MISSING_FE_ID",
+            message="未选择可回刷的 FE。",
+            suggestion="请先在右侧详情中选择包含 FE编号 的需求记录。",
+        ))
+    if not comment:
+        raise HTTPException(status_code=400, detail=_error_detail(
+            code="EMPTY_COMMENT",
+            message="回刷评论内容为空。",
+            suggestion="请先确认评论模板和需求详情能生成有效评论内容。",
+        ))
+
+    result = DryRunInternalSystemClient().add_comment(fe_id, comment)
+    return {
+        "status": "dry_run",
+        "message": "已生成 FE 评论回刷请求。当前 MVP 未调用真实内部系统。",
+        "result": result,
+    }
 
 
 @app.get("/api/jobs/{job_id}/downloads/{file_name}")

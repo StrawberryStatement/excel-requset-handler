@@ -301,6 +301,40 @@ button.help-trigger:focus {
   gap: 8px;
 }
 
+.fe-comment-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.fe-comment-actions label {
+  margin-bottom: 0;
+}
+
+.fe-comment-actions textarea {
+  min-height: 160px;
+  background: #f8fafc;
+}
+
+.action-status {
+  min-height: 20px;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.action-status.success {
+  color: #027a48;
+}
+
+.action-status.warning {
+  color: #b54708;
+}
+
+.action-status.error {
+  color: #b42318;
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

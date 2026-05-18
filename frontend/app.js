@@ -53,10 +53,16 @@ const saveTemplateButton = document.querySelector("#save-template");
 const deleteTemplateButton = document.querySelector("#delete-template");
 const resetTemplateButton = document.querySelector("#reset-template");
 const helpPopover = document.querySelector("#help-popover");
+const feCommentActions = document.querySelector("#fe-comment-actions");
+const writeFeCommentButton = document.querySelector("#write-fe-comment");
+const copyFeCommentButton = document.querySelector("#copy-fe-comment");
+const feCommentPreview = document.querySelector("#fe-comment-preview");
+const feCommentStatus = document.querySelector("#fe-comment-status");
 
 let currentPayload = null;
 let previewRows = [];
 let isSubmitting = false;
+let selectedRow = null;
 
 initTemplates();
 initHelp();
@@ -93,6 +99,10 @@ form.addEventListener("submit", async (event) => {
 
     currentPayload = payload;
     previewRows = payload.preview_rows || [];
+    selectedRow = null;
+    detailBox.className = "detail-empty";
+    detailBox.textContent = "选择预览表中的一行查看详情。";
+    feCommentActions.classList.add("hidden");
     renderSummary(payload.summary || {});
     renderFilters(payload.filters || {});
     renderPreview();
@@ -140,7 +150,13 @@ templateSelect.addEventListener("change", () => {
   const selected = templates[templateSelect.value] || templates.default;
   templateName.value = selected.name;
   templateText.value = selected.content;
+  refreshFeCommentPreview();
 });
+
+templateText.addEventListener("input", refreshFeCommentPreview);
+
+writeFeCommentButton.addEventListener("click", writeSelectedFeComment);
+copyFeCommentButton.addEventListener("click", copySelectedFeComment);
 
 function renderSummary(summary) {
   const cards = [
@@ -211,6 +227,7 @@ function renderPreview() {
 }
 
 function renderDetail(row) {
+  selectedRow = row;
   detailBox.className = "";
   detailBox.innerHTML = `
     <dl>
@@ -225,6 +242,7 @@ function renderDetail(row) {
     <h3>来源列表扩展摘要</h3>
     <pre>${escapeHtml(row.extension_summary || "无")}</pre>
   `;
+  renderFeCommentActions(row);
 }
 
 function renderDownloads(downloads) {
@@ -232,6 +250,152 @@ function renderDownloads(downloads) {
   packageLink.classList.toggle("hidden", !downloads.package);
   jsonLink.href = downloads.sync_plan_json || "#";
   jsonLink.classList.toggle("hidden", !downloads.sync_plan_json);
+}
+
+function renderFeCommentActions(row) {
+  feCommentActions.classList.remove("hidden");
+  feCommentStatus.textContent = "";
+  refreshFeCommentPreview();
+  const feIds = getFeIds(row);
+  const hasFe = feIds.length > 0;
+  writeFeCommentButton.disabled = !hasFe;
+  copyFeCommentButton.disabled = !hasFe;
+  if (!hasFe) {
+    feCommentStatus.textContent = "当前记录没有 FE编号，不能回刷到 FE。";
+    feCommentStatus.className = "action-status warning";
+  }
+}
+
+function refreshFeCommentPreview() {
+  if (!selectedRow || !feCommentPreview) return;
+  feCommentPreview.value = buildFeComment(selectedRow);
+}
+
+async function writeSelectedFeComment() {
+  if (!selectedRow) return;
+  const feIds = getFeIds(selectedRow);
+  const comment = buildFeComment(selectedRow);
+  if (feIds.length === 0) {
+    showActionStatus("当前记录没有 FE编号，不能回刷到 FE。", "warning");
+    return;
+  }
+  if (!comment.trim()) {
+    showActionStatus("评论内容为空，请先检查评论模板。", "warning");
+    return;
+  }
+
+  writeFeCommentButton.disabled = true;
+  showActionStatus("正在生成 FE 回刷请求...", "");
+  try {
+    const results = [];
+    for (const feId of feIds) {
+      const response = await fetch("/api/fe-comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fe_id: feId, comment }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw normalizeApiError(payload);
+      }
+      results.push(payload);
+    }
+    showActionStatus(`已生成 ${results.length} 个 FE 评论回刷请求。当前为 dry-run，未调用真实内部系统。`, "success");
+  } catch (error) {
+    const payload = typeof error === "object" ? error : { message: String(error) };
+    showActionStatus(`${payload.message || "回刷失败。"}${payload.suggestion ? ` ${payload.suggestion}` : ""}`, "error");
+  } finally {
+    writeFeCommentButton.disabled = getFeIds(selectedRow).length === 0;
+  }
+}
+
+async function copySelectedFeComment() {
+  const comment = buildFeComment(selectedRow);
+  if (!comment.trim()) {
+    showActionStatus("没有可复制的评论内容。", "warning");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(comment);
+    showActionStatus("评论内容已复制。", "success");
+  } catch {
+    feCommentPreview.focus();
+    feCommentPreview.select();
+    showActionStatus("浏览器未允许自动复制，请手动复制预览框内容。", "warning");
+  }
+}
+
+function buildFeComment(row) {
+  if (!row) return "";
+  const conclusion = extractFieldFromSummary(row.extension_summary, ["对齐结论", "结论"]) || row.issue || "";
+  const supplemental = buildSupplemental(row);
+  const values = {
+    来源列表: row.source || "",
+    云服务: row.service || "",
+    FE编号: row.fe_id || "",
+    RR编号: row.rr_id || "",
+    需求标题: row.title || "",
+    对齐时间: "",
+    对齐对象: "",
+    对齐结论: conclusion === "无" ? "" : conclusion,
+    补充信息: supplemental,
+  };
+  let rendered = templateText.value || DEFAULT_TEMPLATE;
+  Object.entries(values).forEach(([key, value]) => {
+    rendered = rendered.replaceAll(`{{${key}}}`, value);
+  });
+  return dropEmptyVariableLines(rendered);
+}
+
+function buildSupplemental(row) {
+  const lines = [];
+  if (row.relation && row.relation !== "无") lines.push(`关系：${row.relation}`);
+  if (row.issue && row.issue !== "无") lines.push(`异常：${row.issue}`);
+  if (row.extension_summary) lines.push(row.extension_summary);
+  return lines.join("\n");
+}
+
+function extractFieldFromSummary(summary, fieldNames) {
+  if (!summary) return "";
+  const lines = String(summary).split(/\r?\n/);
+  for (const fieldName of fieldNames) {
+    const line = lines.find((item) => item.includes(`${fieldName}：`));
+    if (line) {
+      return line.split(`${fieldName}：`).slice(1).join(`${fieldName}：`).trim();
+    }
+  }
+  return "";
+}
+
+function getFeIds(row) {
+  return String(row?.fe_id || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function dropEmptyVariableLines(text) {
+  const lines = [];
+  let previousBlank = false;
+  String(text)
+    .split(/\r?\n/)
+    .forEach((line) => {
+      const stripped = line.trim();
+      if ((line.includes("{{") && line.includes("}}")) || stripped.endsWith("：")) return;
+      if (!stripped) {
+        if (!previousBlank) lines.push("");
+        previousBlank = true;
+        return;
+      }
+      previousBlank = false;
+      lines.push(line);
+    });
+  return lines.join("\n").trim();
+}
+
+function showActionStatus(message, type) {
+  feCommentStatus.textContent = message;
+  feCommentStatus.className = `action-status ${type || ""}`.trim();
 }
 
 function severityClass(severity) {

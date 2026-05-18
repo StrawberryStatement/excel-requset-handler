@@ -176,3 +176,26 @@ def test_upload_endpoint_splits_comment_fields_by_chinese_comma(tmp_path, monkey
     row = response.json()["preview_rows"][0]
     assert CONCLUSION in row["extension_summary"]
     assert RISK in row["extension_summary"]
+
+
+def test_fe_comment_endpoint_dry_runs_internal_writeback() -> None:
+    client = TestClient(main.app)
+
+    response = client.post("/api/fe-comments", json={"fe_id": "FE-1", "comment": "已和研发确认按 Q2 交付"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "dry_run"
+    assert payload["result"]["fe_id"] == "FE-1"
+    assert payload["result"]["comment"] == "已和研发确认按 Q2 交付"
+
+
+def test_fe_comment_endpoint_rejects_blank_comment() -> None:
+    client = TestClient(main.app)
+
+    response = client.post("/api/fe-comments", json={"fe_id": "FE-1", "comment": " "})
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "EMPTY_COMMENT"
+    assert "评论内容为空" in detail["message"]

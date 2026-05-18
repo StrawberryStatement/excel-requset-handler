@@ -177,11 +177,24 @@
         </section>
 
         <aside class="panel detail-panel">
-          <h2>详情与评论模板</h2>
+          <h2>详情与回刷</h2>
           <div id="detail" class="detail-empty">选择预览表中的一行查看详情。</div>
+
+          <div id="fe-comment-actions" class="fe-comment-actions hidden">
+            <div class="button-row">
+              <button id="write-fe-comment" type="button">回刷评论到 FE</button>
+              <button id="copy-fe-comment" type="button" class="secondary">复制评论</button>
+            </div>
+            <div id="fe-comment-status" class="action-status"></div>
+            <label>
+              <span>本次 FE 回刷评论预览</span>
+              <textarea id="fe-comment-preview" rows="8" readonly></textarea>
+            </label>
+          </div>
 
           <hr />
 
+          <h2>评论模板</h2>
           <label>
             <span class="label-row">
               当前评论模板
@@ -207,6 +220,6 @@
     </main>
 
     <div id="help-popover" class="help-popover hidden" role="tooltip"></div>
-    <script src="/app.js?v=help-required-20260511"></script>
+    <script src="/app.js?v=fe-comment-writeback-20260518"></script>
   </body>
 </html>

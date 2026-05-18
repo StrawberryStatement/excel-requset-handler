@@ -5,3 +5,4 @@ jobs/
 jobs_smoke/
 server.*.log
 *.pyc
+~$*.xlsx
